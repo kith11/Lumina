@@ -139,7 +139,7 @@ function App() {
 
   const renderPage = () => {
     const routePath = path.split('?')[0];
-    if (routePath === '/shop' || routePath === '/search') return <ShopPage products={products} events={events} wishlist={userWishlist} onWishlist={toggleWishlist} onAdd={addToCart} onTrack={track} initialQuery={routePath === '/search' ? new URLSearchParams(window.location.search).get('q') || '' : ''} />;
+    if (routePath === '/shop' || routePath === '/search') return <ShopPage key={path} products={products} events={events} wishlist={userWishlist} onWishlist={toggleWishlist} onAdd={addToCart} onTrack={track} initialQuery={routePath === '/search' ? new URLSearchParams(window.location.search).get('q') || '' : ''} />;
     if (routePath.startsWith('/product/')) { const product = products.find((item) => item.id === routePath.split('/')[2]); return product ? <ProductPage product={product} products={products} userEvents={userEvents} wishlist={userWishlist} onWishlist={toggleWishlist} onAdd={addToCart} onTrack={track} onNavigate={navigate} /> : <NotFound onNavigate={navigate} />; }
     if (routePath === '/cart') return <CartPage items={cartItems} onUpdate={updateQuantity} onCheckout={checkout} onNavigate={navigate} />;
     if (routePath === '/checkout') return <CheckoutPage items={cartItems} user={currentUser} onCheckout={checkout} onNavigate={navigate} />;
