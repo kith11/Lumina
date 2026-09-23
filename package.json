@@ -1,0 +1,21 @@
+{
+  "name": "lumina-commerce-mvp",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "publish:github": "powershell -ExecutionPolicy Bypass -File scripts/publish-github.ps1",
+    "deploy:vercel": "powershell -ExecutionPolicy Bypass -File scripts/deploy-vercel.ps1"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "lucide-react": "latest"
+  },
+  "devDependencies": {}
+}
