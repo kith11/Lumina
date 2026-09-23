@@ -138,16 +138,17 @@ function App() {
   const checkout = () => { if (!currentUser) { navigate('/login'); notify('Log in to complete your order.'); return; } if (!cartItems.length) return; const order = { id: `LM-${Date.now().toString().slice(-6)}`, userId: currentUser.id, items: cartItems.map((line) => ({ productId: line.productId, quantity: line.quantity, price: line.product.price })), total: cartItems.reduce((sum, line) => sum + line.product.price * line.quantity, 0), status: 'Processing', createdAt: new Date().toISOString() }; setOrders([order, ...orders]); cartItems.forEach((line) => track('purchase', line.productId)); const key = currentUser.id; setCart({ ...cart, [key]: [] }); navigate('/account/orders'); notify('Order placed — thanks for shopping with Lumina'); };
 
   const renderPage = () => {
-    if (path === '/shop' || path === '/search') return <ShopPage products={products} events={events} wishlist={userWishlist} onWishlist={toggleWishlist} onAdd={addToCart} onTrack={track} initialQuery={path === '/search' ? new URLSearchParams(window.location.search).get('q') || '' : ''} />;
-    if (path.startsWith('/product/')) { const product = products.find((item) => item.id === path.split('/')[2]); return product ? <ProductPage product={product} products={products} userEvents={userEvents} wishlist={userWishlist} onWishlist={toggleWishlist} onAdd={addToCart} onTrack={track} onNavigate={navigate} /> : <NotFound onNavigate={navigate} />; }
-    if (path === '/cart') return <CartPage items={cartItems} onUpdate={updateQuantity} onCheckout={checkout} onNavigate={navigate} />;
-    if (path === '/checkout') return <CheckoutPage items={cartItems} user={currentUser} onCheckout={checkout} onNavigate={navigate} />;
-    if (path === '/login') return <AuthPage mode="login" onLogin={login} onRegister={register} onNavigate={navigate} />;
-    if (path === '/register') return <AuthPage mode="register" onLogin={login} onRegister={register} onNavigate={navigate} />;
-    if (path === '/account/orders') return currentUser ? <OrdersPage orders={userOrders} onNavigate={navigate} /> : <AuthWall onNavigate={navigate} />;
-    if (path === '/account') return currentUser ? <AccountPage user={currentUser} events={userEvents} orders={userOrders} onSignOut={signOut} onUpdateAccount={updateAccount} onNavigate={navigate} /> : <AuthWall onNavigate={navigate} />;
-    if (path === '/wishlist') return currentUser ? <WishlistPage products={products.filter((item) => userWishlist.includes(item.id))} onWishlist={toggleWishlist} onAdd={addToCart} onNavigate={navigate} /> : <AuthWall onNavigate={navigate} />;
-    if (path === '/admin') return currentUser?.role === 'admin' ? <AdminPage products={products} orders={orders} /> : <AuthWall onNavigate={navigate} />;
+    const routePath = path.split('?')[0];
+    if (routePath === '/shop' || routePath === '/search') return <ShopPage products={products} events={events} wishlist={userWishlist} onWishlist={toggleWishlist} onAdd={addToCart} onTrack={track} initialQuery={routePath === '/search' ? new URLSearchParams(window.location.search).get('q') || '' : ''} />;
+    if (routePath.startsWith('/product/')) { const product = products.find((item) => item.id === routePath.split('/')[2]); return product ? <ProductPage product={product} products={products} userEvents={userEvents} wishlist={userWishlist} onWishlist={toggleWishlist} onAdd={addToCart} onTrack={track} onNavigate={navigate} /> : <NotFound onNavigate={navigate} />; }
+    if (routePath === '/cart') return <CartPage items={cartItems} onUpdate={updateQuantity} onCheckout={checkout} onNavigate={navigate} />;
+    if (routePath === '/checkout') return <CheckoutPage items={cartItems} user={currentUser} onCheckout={checkout} onNavigate={navigate} />;
+    if (routePath === '/login') return <AuthPage mode="login" onLogin={login} onRegister={register} onNavigate={navigate} />;
+    if (routePath === '/register') return <AuthPage mode="register" onLogin={login} onRegister={register} onNavigate={navigate} />;
+    if (routePath === '/account/orders') return currentUser ? <OrdersPage orders={userOrders} onNavigate={navigate} /> : <AuthWall onNavigate={navigate} />;
+    if (routePath === '/account') return currentUser ? <AccountPage user={currentUser} events={userEvents} orders={userOrders} onSignOut={signOut} onUpdateAccount={updateAccount} onNavigate={navigate} /> : <AuthWall onNavigate={navigate} />;
+    if (routePath === '/wishlist') return currentUser ? <WishlistPage products={products.filter((item) => userWishlist.includes(item.id))} onWishlist={toggleWishlist} onAdd={addToCart} onNavigate={navigate} /> : <AuthWall onNavigate={navigate} />;
+    if (routePath === '/admin') return currentUser?.role === 'admin' ? <AdminPage products={products} orders={orders} /> : <AuthWall onNavigate={navigate} />;
     return <HomePage products={products} events={userEvents} orders={userOrders} wishlist={userWishlist} onWishlist={toggleWishlist} onAdd={addToCart} onTrack={track} onNavigate={navigate} />;
   };
   return <div className="app-shell"><Header currentUser={currentUser} cartCount={cartCount} wishlistCount={userWishlist.length} onNavigate={navigate} onSignOut={signOut} mobileMenu={mobileMenu} setMobileMenu={setMobileMenu} /><main>{renderPage()}</main><Footer onNavigate={navigate} />{toast && <div className="toast"><Check size={17} /> {toast}</div>}</div>;
