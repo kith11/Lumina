@@ -7,15 +7,22 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "db:push": "node scripts/migrate-layerbase.mjs",
+    "db:seed": "node scripts/seed-layerbase.mjs",
     "publish:github": "powershell -ExecutionPolicy Bypass -File scripts/publish-github.ps1",
     "deploy:vercel": "powershell -ExecutionPolicy Bypass -File scripts/deploy-vercel.ps1"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "drizzle-orm": "^0.45.3",
+    "lucide-react": "latest",
+    "postgres": "^3.4.9",
     "react": "latest",
     "react-dom": "latest",
-    "lucide-react": "latest"
+    "vite": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "dotenv": "^18.0.3",
+    "drizzle-kit": "^0.31.11"
+  }
 }

@@ -83,6 +83,7 @@ const seedUsers = [
 const STORE = { users: 'lumina_users', events: 'lumina_events', orders: 'lumina_orders', wishlist: 'lumina_wishlist', cart: 'lumina_cart', current: 'lumina_current' };
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+const syncDatabase = (payload) => { if (typeof fetch !== 'function') return; fetch('/api/lumina', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {}); };
 const money = (value) => `$${value.toFixed(2)}`;
 const fallbackImage = (label = 'Lumina') => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1100" viewBox="0 0 900 1100"><rect width="900" height="1100" fill="#e8eee6"/><circle cx="450" cy="420" r="150" fill="#cbd8c9"/><path d="M180 900c90-180 450-180 540 0" fill="#b7c8b5"/><text x="450" y="760" text-anchor="middle" fill="#445647" font-family="Arial,sans-serif" font-size="30" letter-spacing="5">${label}</text></svg>`)}`;
 function SafeImage({ src, alt = '', ...props }) { const [currentSrc, setCurrentSrc] = useState(src); useEffect(() => setCurrentSrc(src), [src]); return <img {...props} src={currentSrc} alt={alt} onError={() => setCurrentSrc(fallbackImage(alt || 'Lumina'))} />; }
@@ -115,13 +116,15 @@ function App() {
   const cartCount = cartItems.reduce((sum, line) => sum + line.quantity, 0);
 
   const navigate = (to) => { window.history.pushState({}, '', to); setPath(to); setMobileMenu(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const track = (eventType, productId = null) => setEvents((prev) => [...prev, { id: crypto.randomUUID(), userId: currentUser?.id || null, sessionId, productId, eventType, timestamp: new Date().toISOString() }]);
+  const track = (eventType, productId = null) => { const event = { id: crypto.randomUUID(), userId: currentUser?.id || null, sessionId, productId, eventType, timestamp: new Date().toISOString() }; setEvents((prev) => [...prev, event]); syncDatabase({ action: 'event', event }); };
   const notify = (message) => setToast(message);
   const toggleWishlist = (productId) => {
     if (!currentUser) { navigate('/login'); notify('Log in to save products to your wishlist.'); return; }
     const existing = wishlist[currentUser.id] || [];
     const isSaved = existing.includes(productId);
-    setWishlist({ ...wishlist, [currentUser.id]: isSaved ? existing.filter((id) => id !== productId) : [...existing, productId] });
+    const nextWishlist = isSaved ? existing.filter((id) => id !== productId) : [...existing, productId];
+    setWishlist({ ...wishlist, [currentUser.id]: nextWishlist });
+    syncDatabase({ action: 'wishlist', userId: currentUser.id, productId, saved: !isSaved });
     track(isSaved ? 'wishlist_remove' : 'wishlist_add', productId);
     notify(isSaved ? 'Removed from wishlist' : 'Saved to wishlist');
   };
@@ -129,15 +132,17 @@ function App() {
     const key = currentUser?.id || sessionId;
     const lines = cart[key] || [];
     const existing = lines.find((line) => line.productId === productId);
-    setCart({ ...cart, [key]: existing ? lines.map((line) => line.productId === productId ? { ...line, quantity: line.quantity + quantity } : line) : [...lines, { productId, quantity }] });
+    const nextLines = existing ? lines.map((line) => line.productId === productId ? { ...line, quantity: line.quantity + quantity } : line) : [...lines, { productId, quantity }];
+    setCart({ ...cart, [key]: nextLines });
+    syncDatabase({ action: 'cart', ownerKey: key, lines: nextLines });
     track('add_to_cart', productId); notify('Added to your bag');
   };
-  const updateQuantity = (productId, quantity) => { const key = currentUser?.id || sessionId; const lines = cart[key] || []; setCart({ ...cart, [key]: quantity <= 0 ? lines.filter((line) => line.productId !== productId) : lines.map((line) => line.productId === productId ? { ...line, quantity } : line) }); };
+  const updateQuantity = (productId, quantity) => { const key = currentUser?.id || sessionId; const lines = cart[key] || []; const nextLines = quantity <= 0 ? lines.filter((line) => line.productId !== productId) : lines.map((line) => line.productId === productId ? { ...line, quantity } : line); setCart({ ...cart, [key]: nextLines }); syncDatabase({ action: 'cart', ownerKey: key, lines: nextLines }); };
   const signOut = () => { setCurrentUser(null); navigate('/'); notify('You’ve been signed out'); };
-  const updateAccount = (patch) => { if (!currentUser) return; const updated = { ...currentUser, ...patch }; setCurrentUser(updated); setUsers(users.map((user) => user.id === currentUser.id ? updated : user)); notify('Account details updated'); };
-  const login = (email, password) => { const user = users.find((item) => item.email.toLowerCase() === email.toLowerCase() && item.password === password); if (!user) return false; setCurrentUser(user); if (user.seed?.length && !events.some((event) => event.userId === user.id && event.eventType === 'product_view')) { setEvents((prev) => [...prev, ...user.seed.map((productId) => ({ id: crypto.randomUUID(), userId: user.id, sessionId, productId, eventType: 'product_view', timestamp: new Date().toISOString() }))]); } navigate('/'); notify(`Welcome back, ${user.name.split(' ')[0]}`); return true; };
-  const register = (name, email, password) => { if (users.some((user) => user.email === email)) return false; const user = { id: crypto.randomUUID(), name, email, password, role: 'user', seed: [] }; setUsers([...users, user]); setCurrentUser(user); navigate('/'); notify('Your Lumina account is ready'); return true; };
-  const checkout = () => { if (!currentUser) { navigate('/login'); notify('Log in to complete your order.'); return; } if (!cartItems.length) return; const order = { id: `LM-${Date.now().toString().slice(-6)}`, userId: currentUser.id, items: cartItems.map((line) => ({ productId: line.productId, quantity: line.quantity, price: line.product.price })), total: cartItems.reduce((sum, line) => sum + line.product.price * line.quantity, 0), status: 'Processing', createdAt: new Date().toISOString() }; setOrders([order, ...orders]); cartItems.forEach((line) => track('purchase', line.productId)); const key = currentUser.id; setCart({ ...cart, [key]: [] }); navigate('/account/orders'); notify('Order placed — thanks for shopping with Lumina'); };
+  const updateAccount = (patch) => { if (!currentUser) return; const updated = { ...currentUser, ...patch }; setCurrentUser(updated); setUsers(users.map((user) => user.id === currentUser.id ? updated : user)); syncDatabase({ action: 'update_account', user: updated }); notify('Account details updated'); };
+  const login = (email, password) => { const user = users.find((item) => item.email.toLowerCase() === email.toLowerCase() && item.password === password); if (!user) return false; setCurrentUser(user); syncDatabase({ action: 'sync_user', user }); if (user.seed?.length && !events.some((event) => event.userId === user.id && event.eventType === 'product_view')) { setEvents((prev) => [...prev, ...user.seed.map((productId) => ({ id: crypto.randomUUID(), userId: user.id, sessionId, productId, eventType: 'product_view', timestamp: new Date().toISOString() }))]); } navigate('/'); notify(`Welcome back, ${user.name.split(' ')[0]}`); return true; };
+  const register = (name, email, password) => { if (users.some((user) => user.email === email)) return false; const user = { id: crypto.randomUUID(), name, email, password, role: 'user', seed: [] }; setUsers([...users, user]); setCurrentUser(user); syncDatabase({ action: 'sync_user', user }); navigate('/'); notify('Your Lumina account is ready'); return true; };
+  const checkout = () => { if (!currentUser) { navigate('/login'); notify('Log in to complete your order.'); return; } if (!cartItems.length) return; const order = { id: `LM-${Date.now().toString().slice(-6)}`, userId: currentUser.id, items: cartItems.map((line) => ({ productId: line.productId, quantity: line.quantity, price: line.product.price })), total: cartItems.reduce((sum, line) => sum + line.product.price * line.quantity, 0), status: 'Processing', createdAt: new Date().toISOString() }; setOrders([order, ...orders]); syncDatabase({ action: 'order', order }); cartItems.forEach((line) => track('purchase', line.productId)); const key = currentUser.id; setCart({ ...cart, [key]: [] }); syncDatabase({ action: 'cart', ownerKey: key, lines: [] }); navigate('/account/orders'); notify('Order placed — thanks for shopping with Lumina'); };
 
   const renderPage = () => {
     const routePath = path.split('?')[0];
