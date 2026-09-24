@@ -10,7 +10,7 @@ if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
 
 npm run build
 
-$vercelArgs = @("vercel", "--prod", "--yes")
+$vercelArgs = @("--yes", "vercel@59.1.4", "--prod", "--yes")
 if ($ProjectName) {
   $normalizedName = $ProjectName.Trim().ToLowerInvariant()
   $normalizedName = $normalizedName -replace '[^a-z0-9._-]+', '-'

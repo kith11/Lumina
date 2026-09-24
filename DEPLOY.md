@@ -15,7 +15,7 @@ The script initializes Git if needed, creates a commit, configures `origin`, and
 For a direct deploy, authenticate once with the Vercel CLI, then run:
 
 ```powershell
-npx vercel login
+npx --yes vercel@59.1.4 login
 npm run deploy:vercel -- -ProjectName lumina-commerce
 ```
 
